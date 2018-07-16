@@ -15,29 +15,20 @@ const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const express = require('express');
 const fetch = require('node-fetch');
+const routes = require('./routes')
+const constant = require('./Constants')
 
-let Wit = null;
+
 let log = null;
 try {
   // if running from repo
-  Wit = require('../').Wit;
   log = require('../').log;
 } catch (e) {
-  Wit = require('node-wit').Wit;
   log = require('node-wit').log;
 }
 
 // Webserver parameter
 const PORT = process.env.PORT || 8445;
-
-// Wit.ai parameters
-const WIT_TOKEN = "Q2DGD53MC3BSRHKL3VWXURVYR6PTPDWB";
-
-// Messenger API parameters
-const FB_PAGE_TOKEN = "EAAXEUz32g8gBAEMoaehcKmhqiyHfFOofvCiHolxZBj81oAzoZCZCTTzIkYgQ2iXXxoFlL3z3wUA2CnLQU4YGNGNSxGFJG4MZA9X9ZC8WDbs1SGxkVkIvlDjXsMv6Av09dN4uZAnlxPZBpvA1IBhK3yWnvMJuZBJ1H8mexk5tDq96egZDZD";
-if (!FB_PAGE_TOKEN) { throw new Error('missing FB_PAGE_TOKEN') }
-const FB_APP_SECRET = "827a4ee0f1e9a0abf7b69d3b5ba911d4";
-if (!FB_APP_SECRET) { throw new Error('missing FB_APP_SECRET') }
 
 let FB_VERIFY_TOKEN = null;
 crypto.randomBytes(8, (err, buff) => {
@@ -46,64 +37,6 @@ crypto.randomBytes(8, (err, buff) => {
   console.log(`/webhook will accept the Verify Token "${FB_VERIFY_TOKEN}"`);
 });
 
-// ----------------------------------------------------------------------------
-// Messenger API specific code
-
-// See the Send API reference
-// https://developers.facebook.com/docs/messenger-platform/send-api-reference
-
-const fbMessage = (id, text) => {
-  const body = JSON.stringify({
-    recipient: { id },
-    message: { text },
-  });
-  const qs = 'access_token=' + encodeURIComponent(FB_PAGE_TOKEN);
-  return fetch('https://graph.facebook.com/me/messages?' + qs, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body,
-  })
-  .then(rsp => rsp.json())
-  .then(json => {
-    if (json.error && json.error.message) {
-      throw new Error(json.error.message);
-    }
-    return json;
-  });
-};
-
-// ----------------------------------------------------------------------------
-// Wit.ai bot specific code
-
-// This will contain all user sessions.
-// Each session has an entry:
-// sessionId -> {fbid: facebookUserId, context: sessionState}
-const sessions = {};
-
-const findOrCreateSession = (fbid) => {
-  let sessionId;
-  // Let's see if we already have a session for the user fbid
-  Object.keys(sessions).forEach(k => {
-    if (sessions[k].fbid === fbid) {
-      // Yep, got it!
-      sessionId = k;
-    }
-  });
-  if (!sessionId) {
-    // No session found for user fbid, let's create a new one
-    sessionId = new Date().toISOString();
-    sessions[sessionId] = {fbid: fbid, context: {}};
-  }
-  return sessionId;
-};
-
-// Setting up our bot
-const wit = new Wit({
-  accessToken: WIT_TOKEN,
-  logger: new log.Logger(log.INFO)
-});
-
-// Starting our webserver and putting it all together
 const app = express();
 app.use(({method, url}, rsp, next) => {
   rsp.on('finish', () => {
@@ -112,7 +45,7 @@ app.use(({method, url}, rsp, next) => {
   next();
 });
 app.use(bodyParser.json({ verify: verifyRequestSignature }));
-
+routes(app)
 // Webhook setup
 app.get('/webhook', (req, res) => {
   if (req.query['hub.mode'] === 'subscribe' &&
@@ -121,70 +54,6 @@ app.get('/webhook', (req, res) => {
   } else {
     res.sendStatus(400);
   }
-});
-
-// Message handler
-app.post('/webhook', (req, res) => {
-  // Parse the Messenger payload
-  // See the Webhook reference
-  // https://developers.facebook.com/docs/messenger-platform/webhook-reference
-  const data = req.body;
-
-  if (data.object === 'page') {
-    data.entry.forEach(entry => {
-      entry.messaging.forEach(event => {
-        if (event.message && !event.message.is_echo) {
-          // Yay! We got a new message!
-          // We retrieve the Facebook user ID of the sender
-          const sender = event.sender.id;
-
-          // We could retrieve the user's current session, or create one if it doesn't exist
-          // This is useful if we want our bot to figure out the conversation history
-          // const sessionId = findOrCreateSession(sender);
-
-          // We retrieve the message content
-          const {text, attachments} = event.message;
-
-          if (attachments) {
-            // We received an attachment
-            // Let's reply with an automatic message
-            fbMessage(sender, 'Sorry I can only process text messages for now.')
-            .catch(console.error);
-          } else if (text) {
-            // We received a text message
-            console.log(text)
-            // Let's run /message on the text to extract some entities
-            wit.message(text).then(({entities}) => {
-              // You can customize your response to these entities
-             
-              var myJSONEntity = JSON.stringify(entities)
-              console.log(myJSONEntity);
-              var js = JSON.parse(myJSONEntity)
-              if(js.hasOwnProperty('general')){
-                fbMessage(sender, `Hey`);
-                fbMessage(sender, `I am chatbot, How can i help you ?`);
-              }
-              else if(js.hasOwnProperty('passenger')){
-                fbMessage(sender, `Please wait`);
-                fbMessage(sender, `Let me find ride for you`);
-              }
-              else {
-                fbMessage(sender, `i am trained on limited information Sorry :( `);
-              }
-              
-              
-            })
-            .catch((err) => {
-              console.error('Oops! Got an error from Wit: ', err.stack || err);
-            })
-          }
-        } else {
-          console.log('received event', JSON.stringify(event));
-        }
-      });
-    });
-  }
-  res.sendStatus(200);
 });
 
 /*
@@ -208,7 +77,7 @@ function verifyRequestSignature(req, res, buf) {
     var method = elements[0];
     var signatureHash = elements[1];
 
-    var expectedHash = crypto.createHmac('sha1', FB_APP_SECRET)
+    var expectedHash = crypto.createHmac('sha1', constant.FB_APP_SECRET)
                         .update(buf)
                         .digest('hex');
 
