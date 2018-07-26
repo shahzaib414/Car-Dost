@@ -1,20 +1,6 @@
-// Messenger API integration example
-// We assume you have:
-// * a Wit.ai bot setup (https://wit.ai/docs/quickstart)
-// * a Messenger Platform setup (https://developers.facebook.com/docs/messenger-platform/quickstart)
-// You need to `npm install` the following dependencies: body-parser, express, node-fetch.
-//
-// 1. npm install body-parser express node-fetch
-// 2. Download and install ngrok from https://ngrok.com/download
-// 3. ./ngrok http 8445
-// 4. WIT_TOKEN=your_access_token FB_APP_SECRET=your_app_secret FB_PAGE_TOKEN=your_page_token node examples/messenger.js
-// 5. Subscribe your page to the Webhooks using verify_token and `https://<your_ngrok_io>/webhook` as callback URL.
-// 6. Talk to your bot on Messenger!
-
 const bodyParser = require('body-parser');
 const crypto = require('crypto');
 const express = require('express');
-const fetch = require('node-fetch');
 const routes = require('./routes')
 const constant = require('./Constants')
 
@@ -30,10 +16,10 @@ try {
 // Webserver parameter
 const PORT = process.env.PORT || 8445;
 
-let FB_VERIFY_TOKEN = null;
+let FB_VERIFY_TOKEN = "MY_FACEBOOK_TOKEN";
 crypto.randomBytes(8, (err, buff) => {
   if (err) throw err;
-  FB_VERIFY_TOKEN = buff.toString('hex');
+  //FB_VERIFY_TOKEN = buff.toString('hex');
   console.log(`/webhook will accept the Verify Token "${FB_VERIFY_TOKEN}"`);
 });
 
@@ -86,6 +72,5 @@ function verifyRequestSignature(req, res, buf) {
     }
   }
 }
-
 app.listen(PORT);
 console.log('Listening on :' + PORT + '...');
