@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const express = require('express');
 const routes = require('./routes')
 const constant = require('./Constants')
-
+const functions = require('firebase-functions');
 
 let log = null;
 try {
@@ -72,5 +72,4 @@ function verifyRequestSignature(req, res, buf) {
     }
   }
 }
-app.listen(PORT);
-console.log('Listening on :' + PORT + '...');
+exports.openEndpoints = functions.https.onRequest(app)

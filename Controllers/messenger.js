@@ -183,60 +183,66 @@ exports.messageHandler = function (req, res) {
               var js = JSON.parse(myJSONEntity)
               var sorted_EC = checkEntityConfidence(js)
 
-              if (sorted_EC.has('greetings')) {
-                utils.fbMessage(sender, `Hey ${userName} \nhow can i help you?`);
-              }
-
-              else if (sorted_EC.has('passenger')) {
-                utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + sessionId), {
-                  userType: "passenger"
-                })
-                utils.fbMessage(sender, `Okay \nCan you please share your location`);
-
-              }
-              else if (sorted_EC.has('car_owner')) {
-                utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + sessionId), {
-                  userType: "car_owner"
-                })
-                utils.validateCarOwnerInfor(firebase.firebaseDatabase.ref('users/' + userName))
-                .then(function(status) {
-                  if (status) {
-                    utils.fbMessage(sender, `Okay \nCan you please share your location`);
+              if (sorted_EC!=null) {
+                if (sorted_EC.has('greetings')) {
+                  utils.fbMessage(sender, `Hey ${userName} \nhow can i help you?`);
+                }
+  
+                else if (sorted_EC.has('passenger')) {
+                  utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + sessionId), {
+                    userType: "passenger"
+                  })
+                  utils.fbMessage(sender, `Okay \nCan you please share your location`);
+  
+                }
+                else if (sorted_EC.has('car_owner')) {
+                  utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + sessionId), {
+                    userType: "car_owner"
+                  })
+                  utils.validateCarOwnerInfor(firebase.firebaseDatabase.ref('users/' + userName))
+                  .then(function(status) {
+                    if (status) {
+                      utils.fbMessage(sender, `Okay \nCan you please share your location`);
+                    }
+                    else {
+                      utils.fbMessage(sender, `Please register at \nhttps://car-dost.firebaseapp.com/?#/registration to use this service`);
+                    }
+                  })
+                  
+                }
+                else if (sorted_EC.has('departureTime')) {
+                  utils.updateDataToFirebase(firebase.firebaseDatabase.ref('/car_owner/' + timeStamp + '/'),
+                    {
+                      time: text
+                    }
+                  )
+                  utils.fbMessage(sender, `Thank you ${userName} we will notified users near by you`);
+                }
+                else if (sorted_EC.has('irrelevant')) {
+  
+                  utils.fbMessage(sender, `i am trained on limited information Sorry :(`);
+                }
+                else if (sorted_EC.has('sentiment')) {
+                  switch (sorted_EC.get('value')) {
+                    case "neutral":
+                      utils.fbMessage(sender, `${userName} Thanks for your review`);
+                      break;
+                    case "negative":
+                      utils.fbMessage(sender, `${userName} i appologies on behalf of our Team, its really bad thing that you are unhappy with our services.`);
+                      break;
+                    case "positive":
+                      utils.fbMessage(sender, `That's really nice ${userName}. Thanks for your appreciation`);
+                      break;
                   }
-                  else {
-                    utils.fbMessage(sender, `Please register at \nhttps://car-dost.firebaseapp.com/?#/registration to use this service`);
-                  }
-                })
-                
-              }
-              else if (sorted_EC.has('departureTime')) {
-                utils.updateDataToFirebase(firebase.firebaseDatabase.ref('/car_owner/' + timeStamp + '/'),
-                  {
-                    time: text
-                  }
-                )
-                utils.fbMessage(sender, `Thank you ${userName} we will notified users near by you`);
-              }
-              else if (sorted_EC.has('irrelevant')) {
-                wh
-                utils.fbMessage(sender, `i am trained on limited information Sorry :(`);
-              }
-              else if (sorted_EC.has('sentiment')) {
-                switch (sorted_EC.get('value')) {
-                  case "neutral":
-                    utils.fbMessage(sender, `${userName} Thanks for your review`);
-                    break;
-                  case "negative":
-                    utils.fbMessage(sender, `${userName} i appologies on behalf of our Team, its really bad thing that you are unhappy with our services.`);
-                    break;
-                  case "positive":
-                    utils.fbMessage(sender, `That's really nice ${userName}. Thanks for your appreciation`);
-                    break;
+                }
+                else {
+                  utils.fbMessage(sender, `i am trained on limited information Sorry :( `);
                 }
               }
               else {
                 utils.fbMessage(sender, `i am trained on limited information Sorry :( `);
               }
+
 
 
             })
@@ -316,8 +322,13 @@ checkEntityConfidence = (entitiesList) => {
     console.log(`Entity: ${mapKey[i]} and Confidence is ${confidence[i]}`)
   }
   sortedConfidence.set(mapKey[0], confidence[0]);
-
-  return sortedConfidence
+  if (confidence[0]>0.50){
+    return sortedConfidence
+  } 
+  else {
+    return null
+  }
+  
 }
 
 
