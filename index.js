@@ -3,8 +3,6 @@ const crypto = require('crypto');
 const express = require('express');
 const routes = require('./routes')
 const constant = require('./Constants')
-const functions = require('firebase-functions');
-
 let log = null;
 try {
   // if running from repo
@@ -72,4 +70,6 @@ function verifyRequestSignature(req, res, buf) {
     }
   }
 }
-exports.openEndpoints = functions.https.onRequest(app)
+
+app.listen(PORT);
+console.log(`listing at port ${PORT}`)
