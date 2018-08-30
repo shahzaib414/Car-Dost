@@ -22,6 +22,84 @@ exports.fbMessage = (id, text) => {
     });
 };
 
+exports.fbMessageWelcomeTemplate = (id,name) => {
+  const body = JSON.stringify({
+    recipient: { id },
+    message: { 
+      "attachment" : {
+        "type" : "template",
+        "payload" : {
+          "template_type":"generic",
+          "elements":[
+            {
+             "title":`Welcome! ${name}! `,
+             "subtitle":"how can i help you?",    
+           }
+         ]
+        }
+      }
+     },
+  });
+  const qs = 'access_token=' + encodeURIComponent(constant.FB_PAGE_TOKEN);
+  return fetch('https://graph.facebook.com/me/messages?' + qs, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+    .then(rsp => rsp.json())
+    .then(json => {
+      if (json.error && json.error.message) {
+        throw new Error(json.error.message);
+      }
+      return json;
+    });
+};
+
+exports.fbMessageUntrainedTemplate = (id) => {
+  const body = JSON.stringify({
+    recipient: { id },
+    message: { 
+      "attachment" : {
+        "type" : "template",
+        "payload" : {
+          "template_type":"generic",
+          "elements":[
+            {
+             "title":`Sorry :( `,
+             "subtitle":"I am not trained on this information. May be you are",
+             "buttons":[
+              {
+                 "type":"postback",
+                 "title":"Looking for Car",
+                 "payload":"Looking for Car"
+               } ,
+               {
+                "type":"postback",
+                "title":"Offering Ride",
+                "payload":"Offering Ride"
+              }              
+             ]      
+           }
+         ]
+        }
+      }
+     },
+  });
+  const qs = 'access_token=' + encodeURIComponent(constant.FB_PAGE_TOKEN);
+  return fetch('https://graph.facebook.com/me/messages?' + qs, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  })
+    .then(rsp => rsp.json())
+    .then(json => {
+      if (json.error && json.error.message) {
+        throw new Error(json.error.message);
+      }
+      return json;
+    });
+};
+
 exports.findOrCreateSession = (fbid) => {
   let sessionId;
   // Let's see if we already have a session for the user fbid

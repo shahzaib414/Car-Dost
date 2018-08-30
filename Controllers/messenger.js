@@ -135,6 +135,7 @@ exports.messageHandler = function (req, res) {
                           })
 
                         break;
+
                       case "car_owner":
                         geocoder.reverse({ lat: JSON.parse(validresponse)[0].payload.coordinates.lat, lon: JSON.parse(validresponse)[0].payload.coordinates.long })
                           .then(function (res, rej) {
@@ -185,14 +186,15 @@ exports.messageHandler = function (req, res) {
 
               if (sorted_EC!=null) {
                 if (sorted_EC.has('greetings')) {
-                  utils.fbMessage(sender, `Hey ${userName} \nhow can i help you?`);
+                  //utils.fbMessage(sender, `Hey ${userName} \nhow can i help you?`);
+                  utils.fbMessageWelcomeTemplate(sender,userName)
                 }
   
                 else if (sorted_EC.has('passenger')) {
                   utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + sessionId), {
                     userType: "passenger"
                   })
-                  utils.fbMessage(sender, `Okay \nCan you please share your location`);
+                  utils.fbMessage(sender, `Okay \nCan you please share your location pin from messenger App`);
   
                 }
                 else if (sorted_EC.has('car_owner')) {
@@ -202,10 +204,11 @@ exports.messageHandler = function (req, res) {
                   utils.validateCarOwnerInfor(firebase.firebaseDatabase.ref('users/' + userName))
                   .then(function(status) {
                     if (status) {
-                      utils.fbMessage(sender, `Okay \nCan you please share your location`);
+                      utils.fbMessage(sender, `Okay \nCan you please share your Location pin from messenger App`);
                     }
                     else {
-                      utils.fbMessage(sender, `Please register at \nhttps://car-dost.firebaseapp.com/?#/registration to use this service`);
+                      utils.fbMessage(sender, `Please register at \nhttps://car-dost.firebaseapp.com/?#/registration to use this service and let me know`);
+                      
                     }
                   })
                   
@@ -216,11 +219,14 @@ exports.messageHandler = function (req, res) {
                       time: text
                     }
                   )
-                  utils.fbMessage(sender, `Thank you ${userName} we will notified users near by you`);
+                  utils.fbMessage(sender, `Thank you ${userName} we will notify users near by you`);
+                }
+                else if (sorted_EC.has("registeration_complete")){
+                  utils.fbMessage(sender, `Okay \nCan you please share your location pin from messenger App`);
                 }
                 else if (sorted_EC.has('irrelevant')) {
   
-                  utils.fbMessage(sender, `i am trained on limited information Sorry :(`);
+                utils.fbMessageUntrainedTemplate(sender);
                 }
                 else if (sorted_EC.has('sentiment')) {
                   switch (sorted_EC.get('value')) {
@@ -236,11 +242,11 @@ exports.messageHandler = function (req, res) {
                   }
                 }
                 else {
-                  utils.fbMessage(sender, `i am trained on limited information Sorry :( `);
+                  utils.fbMessageUntrainedTemplate(sender);
                 }
               }
               else {
-                utils.fbMessage(sender, `i am trained on limited information Sorry :( `);
+                utils.fbMessageUntrainedTemplate(sender);
               }
 
 
@@ -252,6 +258,27 @@ exports.messageHandler = function (req, res) {
           }
         } else {
           console.log('received event', JSON.stringify(event));
+          if (event.postback ){
+            if (event.postback.payload=="Looking for Car"){
+              utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + findOrCreateSession(event.sender.id)), {
+                userType: "passenger"
+              })
+              utils.fbMessage(event.sender.id, `Okay \nCan you please share your location pin from messenger App`);
+            }else if (event.postback.payload=="Offering Ride"){
+              utils.writeDataToFirebase(firebase.firebaseDatabase.ref('/sessions/' + findOrCreateSession(event.sender.id)), {
+                userType: "car_owner"
+              })
+              utils.validateCarOwnerInfor(firebase.firebaseDatabase.ref('users/' + userName))
+              .then(function(status) {
+                if (status) {
+                  utils.fbMessage(event.sender.id, `Okay \nCan you please share your Location pin from messenger App`);
+                }
+                else {
+                  utils.fbMessage(event.sender.id, `Please register at \nhttps://car-dost.firebaseapp.com/?#/registration to use this service`);
+                }
+              })
+            }
+          } 
         }
       });
     });
